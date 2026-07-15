@@ -1,9 +1,11 @@
 import { useAuth } from "@/lib/AuthContext";
+import { useNavigate } from "react-router-dom";
 import { ShieldAlert, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const UserNotRegisteredError = () => {
   const { logout } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-slate-50 to-slate-100" dir="rtl">
@@ -25,7 +27,7 @@ const UserNotRegisteredError = () => {
             </ul>
           </div>
           <Button
-            onClick={() => logout()}
+            onClick={() => { logout(); navigate("/rider-login", { replace: true }); }}
             className="w-full mt-6 bg-orange-600 hover:bg-orange-700"
           >
             <LogOut className="w-4 h-4" /> تسجيل الخروج

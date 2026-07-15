@@ -1,4 +1,4 @@
-import { Link, useLocation, Outlet } from "react-router-dom";
+import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, FileText, Users, Receipt, Menu, X, BarChart2,
   HandCoins, ClipboardList, ShieldCheck, UserCheck, FlaskConical,
@@ -69,6 +69,12 @@ function NavItem({ item, active, pendingCount, onClick }) {
 
 function SidebarContent({ visibleNavItems, location, pendingCount, onNavigate }) {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/rider-login", { replace: true });
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -111,7 +117,7 @@ function SidebarContent({ visibleNavItems, location, pendingCount, onNavigate })
           </div>
         </div>
         <button
-          onClick={() => logout()}
+          onClick={handleLogout}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
         >
           <LogOut className="w-4 h-4" />

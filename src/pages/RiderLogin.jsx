@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { User, Lock, LogIn, Eye, EyeOff, FlaskConical } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -8,6 +9,7 @@ import { Label } from "@/components/ui/label";
 const INTERNAL_DOMAIN = "dawaa-internal.app";
 
 export default function RiderLogin() {
+  const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -25,9 +27,9 @@ export default function RiderLogin() {
 
     try {
       await base44.auth.loginViaEmailPassword(email, password);
-      window.location.href = "/";
+      navigate("/", { replace: true });
     } catch (err) {
-      if (err?.status === 401 || err?.status === 400) {
+      if (err?.status === 401 || err?.status === 400 || err?.message?.includes("Invalid")) {
         setError("اسم المستخدم أو كلمة المرور غير صحيحة");
       } else if (err?.status === 403) {
         setError("الحساب غير مفعّل — تواصل مع الأدمن");

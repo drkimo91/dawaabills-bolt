@@ -249,14 +249,10 @@ const authProxy = {
 
   logout(redirectUrl) {
     supabase.auth.signOut();
-    if (redirectUrl) {
-      window.location.href = redirectUrl;
-    }
   },
 
   redirectToLogin(nextUrl) {
-    const currentUrl = nextUrl || window.location.href;
-    window.location.href = `/rider-login?next=${encodeURIComponent(currentUrl)}`;
+    // No-op: routing is handled by React Router in App.jsx
   },
 };
 

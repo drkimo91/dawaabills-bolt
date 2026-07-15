@@ -1,12 +1,11 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Navigate, useLocation } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import AppLayout from './components/layout/AppLayout';
-import { Navigate } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import PurchaseInvoices from './pages/PurchaseInvoices.jsx';
 import Suppliers from './pages/Suppliers.jsx';
@@ -32,30 +31,33 @@ import { useUserRole } from '@/lib/useUserRole';
 
 const RiderHomeRedirect = () => {
   const { isDeliveryRider, isAdmin, isDeliverySupervisor, isDeliveryAdmin } = useUserRole();
-  // مندوب فقط (بدون صلاحيات إدارية) → وجّهه مباشرة
   if (isDeliveryRider && !isAdmin && !isDeliverySupervisor && !isDeliveryAdmin) {
     return <Navigate to="/delivery-riders" replace />;
   }
   return <Dashboard />;
 };
 
+const FullScreenLoader = () => (
+  <div className="fixed inset-0 flex items-center justify-center bg-slate-50">
+    <div className="w-10 h-10 border-[3px] border-slate-200 border-t-teal-600 rounded-full animate-spin"></div>
+  </div>
+);
+
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+  const { isLoadingAuth, isLoadingPublicSettings, authError } = useAuth();
+  const location = useLocation();
+  const isLoginRoute = location.pathname === '/rider-login';
 
   if (isLoadingPublicSettings || isLoadingAuth) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
-      </div>
-    );
+    return <FullScreenLoader />;
   }
 
   if (authError) {
-    if (authError.type === 'user_not_registered') {
+    if (authError.type === 'user_not_registered' && !isLoginRoute) {
       return <UserNotRegisteredError />;
-    } else if (authError.type === 'auth_required') {
-      navigateToLogin();
-      return null;
+    }
+    if (authError.type === 'auth_required' && !isLoginRoute) {
+      return <Navigate to="/rider-login" replace />;
     }
   }
 

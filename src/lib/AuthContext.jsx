@@ -8,14 +8,11 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-  const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(true);
   const [authError, setAuthError] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [appPublicSettings, setAppPublicSettings] = useState(null);
 
   const checkUserAuth = useCallback(async () => {
     try {
-      setIsLoadingAuth(true);
       const { data: { session } } = await supabase.auth.getSession();
 
       if (!session) {
@@ -23,6 +20,7 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
         setAuthChecked(true);
         setIsLoadingAuth(false);
+        setAuthError({ type: 'auth_required', message: 'Authentication required' });
         return false;
       }
 
@@ -31,69 +29,47 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(true);
       setAuthChecked(true);
       setIsLoadingAuth(false);
+      setAuthError(null);
       return true;
     } catch (error) {
       setIsLoadingAuth(false);
       setIsAuthenticated(false);
       setAuthChecked(true);
-      if (error?.status === 401 || error?.status === 403) {
-        setAuthError({ type: 'auth_required', message: 'Authentication required' });
-      }
+      setAuthError({ type: 'auth_required', message: 'Authentication required' });
       return false;
     }
   }, []);
 
   useEffect(() => {
-    let mounted = true;
-
-    const init = async () => {
-      setIsLoadingPublicSettings(true);
-      setAppPublicSettings({ id: 'supabase', public_settings: {} });
-      const ok = await checkUserAuth();
-      if (mounted) {
-        if (!ok) {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!session) {
-            setAuthError({ type: 'auth_required', message: 'Authentication required' });
-          }
-        }
-        setIsLoadingPublicSettings(false);
-      }
-    };
-
-    init();
+    checkUserAuth();
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!mounted) return;
       if (session) {
         (async () => {
+          setIsLoadingAuth(true);
           await checkUserAuth();
-          setAuthError(null);
         })();
       } else {
         setUser(null);
         setIsAuthenticated(false);
+        setAuthChecked(true);
+        setIsLoadingAuth(false);
         setAuthError({ type: 'auth_required', message: 'Authentication required' });
       }
     });
 
     return () => {
-      mounted = false;
       listener.subscription.unsubscribe();
     };
   }, [checkUserAuth]);
 
-  const logout = (shouldRedirect = true) => {
+  const logout = () => {
     setUser(null);
     setIsAuthenticated(false);
+    setAuthChecked(true);
+    setIsLoadingAuth(false);
+    setAuthError({ type: 'auth_required', message: 'Authentication required' });
     supabase.auth.signOut();
-    if (shouldRedirect) {
-      window.location.href = '/rider-login';
-    }
-  };
-
-  const navigateToLogin = () => {
-    window.location.href = '/rider-login';
   };
 
   return (
@@ -101,12 +77,9 @@ export const AuthProvider = ({ children }) => {
       user,
       isAuthenticated,
       isLoadingAuth,
-      isLoadingPublicSettings,
       authError,
-      appPublicSettings,
       authChecked,
       logout,
-      navigateToLogin,
       checkUserAuth,
     }}>
       {children}
