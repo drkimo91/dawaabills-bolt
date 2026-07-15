@@ -1,0 +1,506 @@
+import React, { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Trash2, ArrowRightLeft, RotateCcw, AlertTriangle, Search, X, CheckSquare, Pencil, FileDown } from "lucide-react";
+import { useUserRole } from "@/lib/useUserRole";
+import ConfirmDialog from "@/components/invoices/ConfirmDialog";
+import { format, differenceInDays } from "date-fns";
+import * as XLSX from "xlsx";
+
+const BRANCHES = ["فرع زكريا", "فرع بسيسة", "فرع المنشية"];
+
+const emptyForm = () => ({
+  item_name: "", quantity: "", price: "", expiry_date: "", branch: "", notes: ""
+});
+
+const TRANSFER_STATUS_COLORS = {
+  "منتظر التحويل": "bg-yellow-100 text-yellow-800",
+  "تم النقل": "bg-green-100 text-green-800",
+};
+
+export default function SlowMovingTab() {
+  const { isAdmin, isManager } = useUserRole();
+  const queryClient = useQueryClient();
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState(emptyForm());
+  const [editItem, setEditItem] = useState(null);
+  const [editForm, setEditForm] = useState(null);
+  const [actionItem, setActionItem] = useState(null);
+  const [showExport, setShowExport] = useState(false);
+  const [exportFrom, setExportFrom] = useState("");
+  const [exportTo, setExportTo] = useState("");
+  const [transferBranch, setTransferBranch] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [search, setSearch] = useState("");
+  const [filterBranch, setFilterBranch] = useState("الكل");
+  const [filterFrom, setFilterFrom] = useState("");
+  const [filterTo, setFilterTo] = useState("");
+
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkAction, setBulkAction] = useState(null); // "delete" | "expire"
+  const [bulkTransferBranch, setBulkTransferBranch] = useState("");
+
+  const { data: items = [] } = useQuery({
+    queryKey: ["slow-moving-items"],
+    queryFn: () => base44.entities.SlowMovingItem.list(),
+  });
+
+  const sortedItems = [...items]
+    .filter(i => i.status === "راكد" || i.status === "منتظر التحويل")
+    .filter(i => !search || i.item_name.includes(search))
+    .filter(i => filterBranch === "الكل" || i.branch === filterBranch)
+    .filter(i => !filterFrom || i.expiry_date >= filterFrom)
+    .filter(i => !filterTo || i.expiry_date <= filterTo)
+    .sort((a, b) => new Date(a.expiry_date) - new Date(b.expiry_date));
+
+  const createMutation = useMutation({
+    mutationFn: (data) => base44.entities.SlowMovingItem.create(data),
+    onSuccess: () => { queryClient.invalidateQueries(["slow-moving-items"]); setShowAdd(false); setForm(emptyForm()); }
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }) => base44.entities.SlowMovingItem.update(id, data),
+    onSuccess: () => { queryClient.invalidateQueries(["slow-moving-items"]); setActionItem(null); setTransferBranch(""); setEditItem(null); setEditForm(null); }
+  });
+
+  const handleEditSave = () => {
+    if (!editForm.item_name || !editForm.quantity || !editForm.price || !editForm.expiry_date || !editForm.branch) return;
+    updateMutation.mutate({ id: editItem.id, data: { ...editForm, quantity: Number(editForm.quantity), price: Number(editForm.price) } });
+  };
+
+  const handleExport = () => {
+    let data = sortedItems;
+    if (exportFrom) data = data.filter(i => i.expiry_date >= exportFrom);
+    if (exportTo) data = data.filter(i => i.expiry_date <= exportTo);
+    const rows = data.map(i => ({
+      "اسم الصنف": i.item_name,
+      "الفرع": i.branch,
+      "الكمية": i.quantity,
+      "السعر": i.price,
+      "تاريخ الصلاحية": i.expiry_date,
+      "الحالة": i.status,
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "الراكد");
+    XLSX.writeFile(wb, `الراكد_${exportFrom || "كل"}_${exportTo || "التواريخ"}.xlsx`);
+    setShowExport(false);
+  };
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => base44.entities.SlowMovingItem.delete(id),
+    onSuccess: () => queryClient.invalidateQueries(["slow-moving-items"])
+  });
+
+  const expiredCreateMutation = useMutation({
+    mutationFn: (data) => base44.entities.ExpiredItem.create(data),
+    onSuccess: () => queryClient.invalidateQueries(["expired-items"])
+  });
+
+  const handleAdd = () => {
+    if (!form.item_name || !form.quantity || !form.price || !form.expiry_date || !form.branch) return;
+    createMutation.mutate({ ...form, quantity: Number(form.quantity), price: Number(form.price), status: "راكد" });
+  };
+
+  const handleTransfer = () => {
+    if (!transferBranch || transferBranch === actionItem.item.branch) return;
+    // Mark original as "منتظر التحويل"
+    updateMutation.mutate({ id: actionItem.item.id, data: { status: "منتظر التحويل", notes: (actionItem.item.notes || "") + ` | في انتظار التحويل إلى ${transferBranch}` } });
+    // Create new record in new branch
+    base44.entities.SlowMovingItem.create({
+      item_name: actionItem.item.item_name,
+      quantity: actionItem.item.quantity,
+      price: actionItem.item.price,
+      expiry_date: actionItem.item.expiry_date,
+      branch: transferBranch,
+      status: "راكد",
+      notes: `منقول من ${actionItem.item.branch}`
+    }).then(() => {
+      // Mark original as "تم النقل"
+      base44.entities.SlowMovingItem.update(actionItem.item.id, { status: "تم النقل" })
+        .then(() => queryClient.invalidateQueries(["slow-moving-items"]));
+    });
+  };
+
+  const handleReturn = () => {
+    updateMutation.mutate({ id: actionItem.item.id, data: { status: "تم الإرجاع للشركة" } });
+  };
+
+  const handleToExpired = () => {
+    expiredCreateMutation.mutate({
+      item_name: actionItem.item.item_name,
+      quantity: actionItem.item.quantity,
+      price: actionItem.item.price,
+      expiry_date: actionItem.item.expiry_date,
+      branch: actionItem.item.branch,
+      status: "منتهي",
+      source: "محول من الراكد",
+      notes: actionItem.item.notes || ""
+    });
+    updateMutation.mutate({ id: actionItem.item.id, data: { status: "تم التحويل لمنتهي" } });
+  };
+
+  // Bulk actions
+  const handleBulkDelete = async () => {
+    for (const id of selectedIds) {
+      await base44.entities.SlowMovingItem.delete(id);
+    }
+    queryClient.invalidateQueries(["slow-moving-items"]);
+    setSelectedIds([]);
+    setBulkAction(null);
+  };
+
+  const handleBulkToExpired = async () => {
+    const selected = sortedItems.filter(i => selectedIds.includes(i.id));
+    for (const item of selected) {
+      await base44.entities.ExpiredItem.create({
+        item_name: item.item_name,
+        quantity: item.quantity,
+        price: item.price,
+        expiry_date: item.expiry_date,
+        branch: item.branch,
+        status: "منتهي",
+        source: "محول من الراكد",
+        notes: item.notes || ""
+      });
+      await base44.entities.SlowMovingItem.update(item.id, { status: "تم التحويل لمنتهي" });
+    }
+    queryClient.invalidateQueries(["slow-moving-items"]);
+    queryClient.invalidateQueries(["expired-items"]);
+    setSelectedIds([]);
+    setBulkAction(null);
+  };
+
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const toggleSelectAll = () => {
+    const activeIds = sortedItems.map(i => i.id);
+    if (selectedIds.length === activeIds.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(activeIds);
+    }
+  };
+
+  const getExpiryColor = (expiry_date) => {
+    const days = differenceInDays(new Date(expiry_date), new Date());
+    if (days < 0) return "bg-red-100 text-red-800";
+    if (days <= 30) return "bg-orange-100 text-orange-800";
+    if (days <= 90) return "bg-yellow-100 text-yellow-800";
+    return "bg-green-100 text-green-800";
+  };
+
+  const canAct = isAdmin || isManager;
+  const allSelected = sortedItems.length > 0 && selectedIds.length === sortedItems.length;
+
+  return (
+    <div dir="rtl" className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h3 className="text-lg font-semibold text-gray-700">الأصناف الراكدة</h3>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => setShowExport(true)} className="gap-1 text-green-700 border-green-400">
+            <FileDown className="w-4 h-4" /> تصدير Excel
+          </Button>
+          {canAct && (
+            <Button size="sm" onClick={() => setShowAdd(true)} className="gap-1">
+              <Plus className="w-4 h-4" /> إضافة صنف راكد
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Branch filter buttons */}
+      <div className="flex flex-wrap gap-2">
+        {["الكل", ...BRANCHES].map(b => (
+          <Button
+            key={b}
+            size="sm"
+            variant={filterBranch === b ? "default" : "outline"}
+            onClick={() => setFilterBranch(b)}
+            className="text-xs"
+          >
+            {b === "الكل" ? "كل الفروع" : b}
+          </Button>
+        ))}
+      </div>
+
+      {/* Search & date Filters */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <div className="relative flex-1 min-w-[160px]">
+          <Search className="absolute right-2 top-2 w-4 h-4 text-gray-400" />
+          <Input className="pr-7" placeholder="بحث باسم الصنف..." value={search} onChange={e => setSearch(e.target.value)} />
+          {search && <button className="absolute left-2 top-2" onClick={() => setSearch("")}><X className="w-4 h-4 text-gray-400" /></button>}
+        </div>
+        <Input type="month" className="w-36" placeholder="من" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} />
+        <Input type="month" className="w-36" placeholder="إلى" value={filterTo} onChange={e => setFilterTo(e.target.value)} />
+        {(filterFrom || filterTo) && (
+          <Button size="sm" variant="ghost" className="text-gray-400 text-xs" onClick={() => { setFilterFrom(""); setFilterTo(""); }}>
+            <X className="w-3 h-3" /> مسح
+          </Button>
+        )}
+      </div>
+
+      {/* Bulk Action Bar */}
+      {canAct && selectedIds.length > 0 && (
+        <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+          <span className="text-sm font-medium text-blue-700">تم تحديد {selectedIds.length} صنف</span>
+          <Button size="sm" variant="outline" className="text-xs h-7 gap-1 text-red-600 border-red-300"
+            onClick={() => setBulkAction("delete")}>
+            <Trash2 className="w-3 h-3" /> حذف المحدد
+          </Button>
+          <Button size="sm" variant="outline" className="text-xs h-7 gap-1 text-orange-600 border-orange-300"
+            onClick={() => setBulkAction("expire")}>
+            <AlertTriangle className="w-3 h-3" /> تحويل لأكسبير
+          </Button>
+          <Button size="sm" variant="ghost" className="text-xs h-7 text-gray-500 mr-auto"
+            onClick={() => setSelectedIds([])}>
+            إلغاء التحديد
+          </Button>
+        </div>
+      )}
+
+      {/* Table */}
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 text-gray-600">
+            <tr>
+              {canAct && (
+                <th className="px-3 py-2 text-center w-10">
+                  <Checkbox checked={allSelected} onCheckedChange={toggleSelectAll} />
+                </th>
+              )}
+              <th className="px-3 py-2 text-right">اسم الصنف</th>
+              <th className="px-3 py-2 text-right">الفرع</th>
+              <th className="px-3 py-2 text-right">العدد</th>
+              <th className="px-3 py-2 text-right">السعر</th>
+              <th className="px-3 py-2 text-right">تاريخ الصلاحية</th>
+              <th className="px-3 py-2 text-right">الحالة</th>
+              {canAct && <th className="px-3 py-2 text-right">إجراءات</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {sortedItems.length === 0 && (
+              <tr><td colSpan={8} className="text-center py-8 text-gray-400">لا توجد أصناف راكدة</td></tr>
+            )}
+            {sortedItems.map(item => (
+              <tr key={item.id} className={`border-t hover:bg-gray-50 ${selectedIds.includes(item.id) ? "bg-blue-50" : ""}`}>
+                {canAct && (
+                  <td className="px-3 py-2 text-center">
+                    <Checkbox checked={selectedIds.includes(item.id)} onCheckedChange={() => toggleSelect(item.id)} />
+                  </td>
+                )}
+                <td className="px-3 py-2 font-medium">
+                  {item.item_name}
+                  {item.notes && <div className="text-xs text-gray-400 mt-0.5">{item.notes}</div>}
+                </td>
+                <td className="px-3 py-2">{item.branch}</td>
+                <td className="px-3 py-2">{item.quantity}</td>
+                <td className="px-3 py-2">{item.price} ج</td>
+                <td className="px-3 py-2">
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${getExpiryColor(item.expiry_date)}`}>
+                    {format(new Date(item.expiry_date), "MM/yyyy")}
+                  </span>
+                </td>
+                <td className="px-3 py-2">
+                  {item.status === "منتظر التحويل" || item.status === "تم النقل" ? (
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${TRANSFER_STATUS_COLORS[item.status] || "bg-gray-100 text-gray-600"}`}>
+                      {item.status}
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">{item.status}</span>
+                  )}
+                </td>
+                {canAct && (
+                  <td className="px-3 py-2">
+                    <div className="flex gap-1 flex-wrap">
+                      <Button size="sm" variant="outline" className="text-xs h-7 px-2 gap-1"
+                        onClick={() => setActionItem({ item, type: "transfer" })}>
+                        <ArrowRightLeft className="w-3 h-3" /> نقل
+                      </Button>
+                      <Button size="sm" variant="outline" className="text-xs h-7 px-2 gap-1 text-orange-600 border-orange-300"
+                        onClick={() => setActionItem({ item, type: "expire" })}>
+                        <AlertTriangle className="w-3 h-3" /> منتهي
+                      </Button>
+                      <Button size="sm" variant="outline" className="text-xs h-7 px-2 gap-1 text-blue-600 border-blue-300"
+                        onClick={() => setActionItem({ item, type: "return" })}>
+                        <RotateCcw className="w-3 h-3" /> إرجاع
+                      </Button>
+                      <Button size="sm" variant="ghost" className="text-xs h-7 px-2 text-gray-500"
+                        onClick={() => { setEditItem(item); setEditForm({ item_name: item.item_name, quantity: item.quantity, price: item.price, expiry_date: item.expiry_date, branch: item.branch, notes: item.notes || "" }); }}>
+                        <Pencil className="w-3 h-3" />
+                      </Button>
+                      <Button size="sm" variant="ghost" className="text-xs h-7 px-2 text-red-500"
+                        onClick={() => setConfirmDeleteId(item.id)}>
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Bulk Delete Confirm */}
+      <ConfirmDialog
+        open={bulkAction === "delete"}
+        onOpenChange={(o) => { if (!o) setBulkAction(null); }}
+        title="تأكيد الحذف الجماعي"
+        description={`هل أنت متأكد من حذف ${selectedIds.length} صنف؟ لا يمكن التراجع.`}
+        onConfirm={handleBulkDelete}
+        confirmLabel="حذف الكل"
+      />
+
+      {/* Bulk Expire Confirm */}
+      <ConfirmDialog
+        open={bulkAction === "expire"}
+        onOpenChange={(o) => { if (!o) setBulkAction(null); }}
+        title="تحويل للأكسبير"
+        description={`هل تريد تحويل ${selectedIds.length} صنف إلى تبويب الأكسبير (المنتهي)؟`}
+        onConfirm={handleBulkToExpired}
+        confirmLabel="تحويل"
+      />
+
+      {/* Single Delete Confirm */}
+      <ConfirmDialog
+        open={!!confirmDeleteId}
+        onOpenChange={(o) => { if (!o) setConfirmDeleteId(null); }}
+        title="تأكيد الحذف"
+        description="هل أنت متأكد من حذف هذا الصنف؟ لا يمكن التراجع عن هذا الإجراء."
+        onConfirm={() => { deleteMutation.mutate(confirmDeleteId); setConfirmDeleteId(null); }}
+        confirmLabel="حذف"
+      />
+
+      {/* Add Dialog */}
+      <Dialog open={showAdd} onOpenChange={setShowAdd}>
+        <DialogContent className="max-w-md" dir="rtl">
+          <DialogHeader><DialogTitle>إضافة صنف راكد</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <Input placeholder="اسم الصنف" value={form.item_name} onChange={e => setForm({ ...form, item_name: e.target.value })} />
+            <Select value={form.branch} onValueChange={v => setForm({ ...form, branch: v })}>
+              <SelectTrigger><SelectValue placeholder="اختر الفرع" /></SelectTrigger>
+              <SelectContent>{BRANCHES.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
+            </Select>
+            <Input type="number" placeholder="العدد" value={form.quantity} onChange={e => setForm({ ...form, quantity: e.target.value })} />
+            <Input type="number" placeholder="السعر" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} />
+            <Input type="month" placeholder="تاريخ الصلاحية" value={form.expiry_date} onChange={e => setForm({ ...form, expiry_date: e.target.value })} />
+            <Input placeholder="ملاحظات (اختياري)" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
+          </div>
+          <DialogFooter className="flex-row-reverse gap-2">
+            <Button onClick={handleAdd} disabled={createMutation.isPending}>
+              {createMutation.isPending ? "جاري الحفظ..." : "حفظ"}
+            </Button>
+            <Button variant="outline" onClick={() => setShowAdd(false)}>إلغاء</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Export Dialog */}
+      <Dialog open={showExport} onOpenChange={setShowExport}>
+        <DialogContent className="max-w-sm" dir="rtl">
+          <DialogHeader><DialogTitle>تصدير إلى Excel</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600">حدد نطاق تاريخ الصلاحية (اختياري)</p>
+            <div className="flex items-center gap-2">
+              <span className="text-sm w-8">من:</span>
+              <Input type="month" value={exportFrom} onChange={e => setExportFrom(e.target.value)} />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm w-8">إلى:</span>
+              <Input type="month" value={exportTo} onChange={e => setExportTo(e.target.value)} />
+            </div>
+            <p className="text-xs text-gray-400">إذا تركت الحقول فارغة سيتم تصدير كل الأصناف الظاهرة حاليًا</p>
+          </div>
+          <DialogFooter className="flex-row-reverse gap-2">
+            <Button onClick={handleExport} className="bg-green-700 hover:bg-green-800 text-white gap-1">
+              <FileDown className="w-4 h-4" /> تصدير
+            </Button>
+            <Button variant="outline" onClick={() => setShowExport(false)}>إلغاء</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editItem} onOpenChange={(o) => { if (!o) { setEditItem(null); setEditForm(null); } }}>
+        <DialogContent className="max-w-md" dir="rtl">
+          <DialogHeader><DialogTitle>تعديل الصنف</DialogTitle></DialogHeader>
+          {editForm && (
+            <div className="space-y-3">
+              <Input placeholder="اسم الصنف" value={editForm.item_name} onChange={e => setEditForm({ ...editForm, item_name: e.target.value })} />
+              <Select value={editForm.branch} onValueChange={v => setEditForm({ ...editForm, branch: v })}>
+                <SelectTrigger><SelectValue placeholder="اختر الفرع" /></SelectTrigger>
+                <SelectContent>{BRANCHES.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
+              </Select>
+              <Input type="number" placeholder="العدد" value={editForm.quantity} onChange={e => setEditForm({ ...editForm, quantity: e.target.value })} />
+              <Input type="number" placeholder="السعر" value={editForm.price} onChange={e => setEditForm({ ...editForm, price: e.target.value })} />
+              <Input type="month" placeholder="تاريخ الصلاحية" value={editForm.expiry_date} onChange={e => setEditForm({ ...editForm, expiry_date: e.target.value })} />
+              <Input placeholder="ملاحظات" value={editForm.notes} onChange={e => setEditForm({ ...editForm, notes: e.target.value })} />
+            </div>
+          )}
+          <DialogFooter className="flex-row-reverse gap-2">
+            <Button onClick={handleEditSave} disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? "جاري الحفظ..." : "حفظ التعديل"}
+            </Button>
+            <Button variant="outline" onClick={() => { setEditItem(null); setEditForm(null); }}>إلغاء</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Action Dialog */}
+      <Dialog open={!!actionItem} onOpenChange={() => { setActionItem(null); setTransferBranch(""); }}>
+        <DialogContent className="max-w-sm" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>
+              {actionItem?.type === "transfer" && "نقل الصنف لفرع آخر"}
+              {actionItem?.type === "return" && "إرجاع الصنف للشركة"}
+              {actionItem?.type === "expire" && "تحويل إلى تبويب المنتهي"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600">الصنف: <strong>{actionItem?.item?.item_name}</strong></p>
+            {actionItem?.type === "transfer" && (
+              <>
+                <p className="text-sm text-gray-500">الفرع الحالي: {actionItem?.item?.branch}</p>
+                <Select value={transferBranch} onValueChange={setTransferBranch}>
+                  <SelectTrigger><SelectValue placeholder="اختر الفرع المستقبل" /></SelectTrigger>
+                  <SelectContent>
+                    {BRANCHES.filter(b => b !== actionItem?.item?.branch).map(b => (
+                      <SelectItem key={b} value={b}>{b}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded p-2">
+                  سيظهر الصنف الأصلي بحالة "منتظر التحويل" ثم "تم النقل" بعد إنشاء السجل الجديد.
+                </p>
+              </>
+            )}
+            {actionItem?.type === "return" && (
+              <p className="text-sm text-gray-500">سيتم تسجيل هذا الصنف كمرتجع للشركة.</p>
+            )}
+            {actionItem?.type === "expire" && (
+              <p className="text-sm text-gray-500">سيتم نقل هذا الصنف إلى تبويب الأكسبير (المنتهي).</p>
+            )}
+          </div>
+          <DialogFooter className="flex-row-reverse gap-2">
+            <Button
+              onClick={actionItem?.type === "transfer" ? handleTransfer : actionItem?.type === "return" ? handleReturn : handleToExpired}
+              disabled={updateMutation.isPending || (actionItem?.type === "transfer" && !transferBranch)}>
+              تأكيد
+            </Button>
+            <Button variant="outline" onClick={() => { setActionItem(null); setTransferBranch(""); }}>إلغاء</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

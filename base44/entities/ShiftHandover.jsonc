@@ -1,0 +1,118 @@
+{
+  "name": "ShiftHandover",
+  "type": "object",
+  "properties": {
+    "branch": {
+      "type": "string",
+      "enum": [
+        "\u0641\u0631\u0639 \u0632\u0643\u0631\u064a\u0627",
+        "\u0641\u0631\u0639 \u0628\u0633\u064a\u0633\u0629",
+        "\u0641\u0631\u0639 \u0627\u0644\u0645\u0646\u0634\u064a\u0629"
+      ],
+      "description": "\u0627\u0644\u0641\u0631\u0639"
+    },
+    "shift_type": {
+      "type": "string",
+      "enum": [
+        "\u0635\u0628\u0627\u062d\u064a",
+        "\u0645\u0633\u0627\u0626\u064a",
+        "\u0646\u0627\u064a\u062a"
+      ],
+      "description": "\u0646\u0648\u0639 \u0627\u0644\u0634\u064a\u0641\u062a"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "\u062a\u0627\u0631\u064a\u062e \u0627\u0644\u0625\u0646\u0634\u0627\u0621 (\u062d\u0642\u064a\u0642\u064a\u060c \u062a\u0644\u0642\u0627\u0626\u064a)"
+    },
+    "posting_date": {
+      "type": "string",
+      "format": "date",
+      "description": "\u062a\u0627\u0631\u064a\u062e \u0627\u0644\u0627\u062d\u062a\u0633\u0627\u0628 \u2014 \u064a\u064f\u0633\u062a\u062e\u062f\u0645 \u0641\u064a \u062c\u0645\u064a\u0639 \u0627\u0644\u062a\u0642\u0627\u0631\u064a\u0631 \u0648\u0627\u0644\u0625\u062d\u0635\u0627\u0626\u064a\u0627\u062a"
+    },
+    "handover_time": {
+      "type": "string",
+      "description": "\u0648\u0642\u062a \u0627\u0644\u0625\u0646\u0634\u0627\u0621 (ISO\u060c \u062a\u0644\u0642\u0627\u0626\u064a)"
+    },
+    "employee_name": {
+      "type": "string",
+      "description": "\u0627\u0633\u0645 \u0627\u0644\u0645\u0648\u0638\u0641 \u0627\u0644\u0645\u0633\u0624\u0648\u0644"
+    },
+    "total_sales": {
+      "type": "number",
+      "description": "\u0625\u062c\u0645\u0627\u0644\u064a \u0645\u0628\u064a\u0639\u0627\u062a \u0627\u0644\u0634\u064a\u0641\u062a"
+    },
+    "expenses": {
+      "type": "array",
+      "description": "\u0628\u0646\u0648\u062f \u0627\u0644\u0645\u0635\u0631\u0648\u0641\u0627\u062a",
+      "items": {
+        "type": "object",
+        "properties": {
+          "template_name": {
+            "type": "string",
+            "description": "\u0646\u0648\u0639 \u0627\u0644\u0645\u0635\u0631\u0648\u0641"
+          },
+          "amount": {
+            "type": "number",
+            "description": "\u0642\u064a\u0645\u0629 \u0627\u0644\u0645\u0635\u0631\u0648\u0641"
+          },
+          "notes": {
+            "type": "string",
+            "description": "\u0645\u0644\u0627\u062d\u0638\u0627\u062a / \u062a\u0641\u0627\u0635\u064a\u0644 \u0627\u0644\u0645\u0635\u0631\u0648\u0641"
+          }
+        }
+      }
+    },
+    "total_expenses": {
+      "type": "number",
+      "default": 0,
+      "description": "\u0625\u062c\u0645\u0627\u0644\u064a \u0627\u0644\u0645\u0635\u0631\u0648\u0641\u0627\u062a"
+    },
+    "net_amount": {
+      "type": "number",
+      "default": 0,
+      "description": "\u0635\u0627\u0641\u064a \u0627\u0644\u062a\u0633\u0644\u064a\u0645"
+    },
+    "created_by_name": {
+      "type": "string",
+      "description": "\u0627\u0633\u0645 \u0627\u0644\u0645\u0633\u062a\u062e\u062f\u0645 \u0627\u0644\u0630\u064a \u0623\u0646\u0634\u0623 \u0627\u0644\u0633\u062c\u0644"
+    }
+  },
+  "required": [
+    "branch",
+    "shift_type",
+    "date",
+    "employee_name",
+    "total_sales"
+  ],
+  "rls": {
+    "create": {},
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "manager"
+          }
+        },
+        {
+          "data.created_by_id": "{{user.id}}"
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
