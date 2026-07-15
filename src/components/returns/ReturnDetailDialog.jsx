@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { base44 } from "@/api/base44Client";
 import { useUserRole } from "@/lib/useUserRole";
-import { CheckCircle, XCircle, Clock, Send, RotateCcw, Loader2, ZoomIn, MessageSquare, Trash2, Edit2, PauseCircle, Save, Printer } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Send, Loader2, ZoomIn, MessageSquare, Trash2, Edit2, PauseCircle, Save, Printer } from "lucide-react";
 import ConfirmDialog from "@/components/invoices/ConfirmDialog";
 
 const STATUS_CONFIG = {

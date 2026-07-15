@@ -5,9 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { base44 } from "@/api/base44Client";
 import {
-  Loader2, Edit2, ZoomIn, CheckCircle, Search, Package, Truck,
-  Ban, RotateCcw, AlertTriangle, User, Phone, MapPin, Calendar,
-  ChevronRight, CheckCircle2, ShoppingCart
+  Loader2, Edit2, CheckCircle, Search, Package, Truck,
+  Ban, RotateCcw, AlertTriangle, User, Phone, MapPin, Calendar, CheckCircle2, ShoppingCart
 } from "lucide-react";
 import OrderFormDialog from "./OrderFormDialog";
 

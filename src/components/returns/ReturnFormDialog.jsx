@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { base44 } from "@/api/base44Client";
-import { Plus, Trash2, Upload, X, Image, Loader2, Camera } from "lucide-react";
+import { Plus, Trash2, Upload, X, Loader2, Camera } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 const BRANCHES = ["فرع زكريا", "فرع بسيسة", "فرع المنشية"];

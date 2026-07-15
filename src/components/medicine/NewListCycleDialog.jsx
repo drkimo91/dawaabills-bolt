@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { RefreshCw, AlertTriangle, CheckCircle2, FileText } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileText } from "lucide-react";
 
 const BRANCHES = ["فرع زكريا", "فرع بسيسة", "فرع المنشية"];
 const TODAY = new Date().toISOString().split("T")[0];

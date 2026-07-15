@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { PlayCircle, Clock, User, Calendar, Package, AlertTriangle, Lock } from "lucide-react";
+import { PlayCircle, Clock, User, Calendar, Package, Lock } from "lucide-react";
 
 const TODAY = new Date().toISOString().split("T")[0];
 

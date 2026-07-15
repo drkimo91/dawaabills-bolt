@@ -3,8 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { BarChart2, TrendingDown, TrendingUp, AlertTriangle, CheckCircle2 } from "lucide-react";
-import { format } from "date-fns";
+import { BarChart2, AlertTriangle } from "lucide-react";
 
 export default function AccuracyReport({ branch }) {
   const [filterFrom, setFilterFrom] = useState("");

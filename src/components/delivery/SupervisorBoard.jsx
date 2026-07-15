@@ -6,15 +6,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Users, CalendarCheck, Route, Circle, Clock, Navigation, LayoutList } from "lucide-react";
+import { Users, CalendarCheck, Route, Clock, Navigation, LayoutList } from "lucide-react";
 import SupervisorTripsBoard from "@/components/delivery/SupervisorTripsBoard";
 import LiveTimer from "@/components/attendance/LiveTimer";
 import CheckInScreen from "@/components/attendance/CheckInScreen";
 import TripScreen from "@/components/trips/TripScreen";
 import TripDetailDialog from "@/components/trips/TripDetailDialog";
 import RiderScheduleTable from "@/components/delivery/RiderScheduleTable";
-import { getTodayDateStr, formatTime } from "@/lib/attendance-utils";
+import { getTodayDateStr } from "@/lib/attendance-utils";
 import { getEffectiveSchedule } from "@/components/delivery/RiderScheduleTable";
 
 export default function SupervisorBoard({ actingUser }) {

@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Bell, X, FileText, RotateCcw, Receipt, ChevronDown, ChevronUp, ShoppingBag } from "lucide-react";
+import { Bell, X, FileText, RotateCcw, Receipt, ShoppingBag } from "lucide-react";
 import { Link } from "react-router-dom";
 
 function daysDiff(dateStr) {

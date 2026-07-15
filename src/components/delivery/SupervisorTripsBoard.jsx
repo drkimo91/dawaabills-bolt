@@ -12,11 +12,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { getTodayDateStr, formatTime } from "@/lib/attendance-utils";
 import { computeStopDuration, computeTripDuration, stopTypeColor } from "@/lib/trip-utils";
 import LiveTimer from "@/components/attendance/LiveTimer";
-import { Route, Clock, X, PauseCircle, CheckCircle, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
+import { Route, X, PauseCircle, CheckCircle, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 const IDLE_REASONS = ["عطلان", "إذن", "استراحة", "انتظار أوردر"];

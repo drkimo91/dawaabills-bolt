@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, ArrowRightLeft, RotateCcw, AlertTriangle, Search, X, CheckSquare, Pencil, FileDown } from "lucide-react";
+import { Plus, Trash2, ArrowRightLeft, RotateCcw, AlertTriangle, Search, X, Pencil, FileDown } from "lucide-react";
 import { useUserRole } from "@/lib/useUserRole";
 import ConfirmDialog from "@/components/invoices/ConfirmDialog";
 import { format, differenceInDays } from "date-fns";

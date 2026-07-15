@@ -1,10 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Eye, RefreshCw, RotateCcw, AlertTriangle } from "lucide-react";
 import { useUserRole } from "@/lib/useUserRole";
 import ReturnFormDialog from "@/components/returns/ReturnFormDialog";

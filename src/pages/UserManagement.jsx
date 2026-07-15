@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ShieldCheck, UserPlus, Mail, Check, X, Lock, KeyRound,
-  Building2, Users, ChevronDown, ChevronUp, Pencil, Save
+  Building2, Users, ChevronDown, ChevronUp
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useUserRole } from "@/lib/useUserRole";

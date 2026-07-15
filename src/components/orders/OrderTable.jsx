@@ -1,4 +1,4 @@
-import { Loader2, Trash2, Eye, MessageSquareText } from "lucide-react";
+import { Loader2, Trash2, MessageSquareText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ConfirmDialog from "@/components/invoices/ConfirmDialog";
 import { useState } from "react";

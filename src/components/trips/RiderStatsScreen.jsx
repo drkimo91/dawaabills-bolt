@@ -2,7 +2,6 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Package, Car, Route, Clock, BarChart3, Calendar } from "lucide-react";
-import { computeTripDuration } from "@/lib/trip-utils";
 import { getTodayDateStr } from "@/lib/attendance-utils";
 
 export default function RiderStatsScreen() {

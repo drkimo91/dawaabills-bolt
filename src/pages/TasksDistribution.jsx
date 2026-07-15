@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useUserRole } from "@/lib/useUserRole";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import TasksList from "@/components/tasks/TasksList";
 import TemplatesManager from "@/components/tasks/TemplatesManager";
 import InventoryItemsManager from "@/components/tasks/InventoryItemsManager";
 import TaskAssignDialog from "@/components/tasks/TaskAssignDialog";

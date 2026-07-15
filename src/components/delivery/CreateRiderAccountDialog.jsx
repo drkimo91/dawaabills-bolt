@@ -1,9 +1,8 @@
 /**
  * CreateRiderAccountDialog
- * الأدمن يُنشئ حساباً جديداً للمندوب:
- * 1) يُسجّل البريد الداخلي username@dawaa-internal.app + كلمة المرور
- * 2) يُدخل رمز OTP الذي وصل على البريد
- * 3) يتم ربط الحساب بسجل المندوب تلقائياً
+ * Admin creates a new rider account:
+ * 1) Enter username + password (internal email auto-generated)
+ * 2) Account is created and linked to the rider record
  */
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -18,23 +17,20 @@ const INTERNAL_DOMAIN = "dawaa-internal.app";
 
 export default function CreateRiderAccountDialog({ open, onOpenChange, rider, onAccountCreated }) {
   const { toast } = useToast();
-  const [step, setStep] = useState(1); // 1=بيانات, 2=OTP, 3=مكتمل
+  const [step, setStep] = useState(1);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [otp, setOtp] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [internalEmail, setInternalEmail] = useState("");
 
   const reset = () => {
-    setStep(1); setUsername(""); setPassword(""); setOtp("");
-    setError(""); setInternalEmail(""); setLoading(false);
+    setStep(1); setUsername(""); setPassword("");
+    setError(""); setLoading(false);
   };
 
   const handleClose = () => { reset(); onOpenChange(false); };
 
-  // الخطوة 1: تسجيل الحساب
   const handleRegister = async () => {
     if (!username.trim() || password.length < 6) return;
     setError("");
@@ -42,14 +38,12 @@ export default function CreateRiderAccountDialog({ open, onOpenChange, rider, on
 
     const clean = username.trim().toLowerCase().replace(/\s+/g, "_");
     const email = `${clean}@${INTERNAL_DOMAIN}`;
-    setInternalEmail(email);
 
     try {
       await base44.auth.register({ email, password });
-      setStep(2);
-      toast({ title: "تم إرسال رمز التحقق", description: `إلى ${email}` });
+      await linkAccountToRider(email, clean);
     } catch (err) {
-      if (err?.status === 409 || err?.data?.detail?.includes("already")) {
+      if (err?.message?.includes("already") || err?.message?.includes("registered")) {
         setError("اسم المستخدم مستخدم مسبقاً، اختر اسماً آخر");
       } else {
         setError("حدث خطأ أثناء إنشاء الحساب");
@@ -59,35 +53,25 @@ export default function CreateRiderAccountDialog({ open, onOpenChange, rider, on
     }
   };
 
-  // الخطوة 2: التحقق من OTP
-  const handleVerifyOtp = async () => {
-    if (!otp.trim()) return;
-    setError("");
-    setLoading(true);
+  const linkAccountToRider = async (email, cleanUsername) => {
     try {
-      await base44.auth.verifyOtp({ email: internalEmail, otpCode: otp.trim() });
-      // ابحث عن المستخدم الجديد وربطه بالمندوب
-      await linkAccountToRider();
-    } catch (err) {
-      setError("رمز التحقق غير صحيح أو منتهي الصلاحية");
-      setLoading(false);
-    }
-  };
-
-  const linkAccountToRider = async () => {
-    try {
-      // انتظر قليلاً حتى يُسجَّل المستخدم
-      await new Promise((r) => setTimeout(r, 1000));
       const users = await base44.entities.User.list();
-      const newUser = users.find((u) => u.email === internalEmail);
+      const newUser = users.find((u) => u.email === email);
       if (newUser && rider) {
-        await base44.entities.User.update(newUser.id, { delivery_role: "مندوب", linked_rider_id: rider.id });
-        await base44.entities.Rider.update(rider.id, { username: username.trim().toLowerCase().replace(/\s+/g, "_"), user_id: newUser.id });
+        await base44.entities.User.update(newUser.id, {
+          delivery_role: "مندوب",
+          linked_rider_id: rider.id,
+          full_name: rider.name,
+        });
+        await base44.entities.Rider.update(rider.id, {
+          username: cleanUsername,
+          user_id: newUser.id,
+        });
       }
       setStep(3);
+      toast({ title: "تم إنشاء الحساب", description: `المستخدم: ${cleanUsername}` });
       onAccountCreated?.();
     } catch {
-      // حتى لو فشل الربط، الحساب تم إنشاؤه
       setStep(3);
       onAccountCreated?.();
     } finally {
@@ -108,7 +92,6 @@ export default function CreateRiderAccountDialog({ open, onOpenChange, rider, on
           </div>
         )}
 
-        {/* خطوة 1 */}
         {step === 1 && (
           <div className="space-y-4">
             <div className="space-y-1.5">
@@ -155,40 +138,6 @@ export default function CreateRiderAccountDialog({ open, onOpenChange, rider, on
           </div>
         )}
 
-        {/* خطوة 2: OTP */}
-        {step === 2 && (
-          <div className="space-y-4">
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-700 text-center">
-              <p className="font-bold mb-1">أدخل رمز التحقق</p>
-              <p className="text-xs">تم إرسال رمز إلى:</p>
-              <p className="font-mono text-xs mt-1">{internalEmail}</p>
-            </div>
-            <div className="space-y-1.5">
-              <Label>رمز التحقق (OTP)</Label>
-              <Input
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                placeholder="أدخل الرمز المكوّن من 6 أرقام"
-                maxLength={6}
-                dir="ltr"
-                className="text-center text-xl tracking-widest"
-              />
-            </div>
-            {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-            <DialogFooter className="flex-row-reverse gap-2">
-              <Button
-                className="bg-teal-600 hover:bg-teal-700 flex-1"
-                disabled={loading || otp.length < 4}
-                onClick={handleVerifyOtp}
-              >
-                {loading ? "جاري التحقق..." : "تأكيد الرمز"}
-              </Button>
-              <Button variant="outline" onClick={() => setStep(1)}>رجوع</Button>
-            </DialogFooter>
-          </div>
-        )}
-
-        {/* خطوة 3: اكتمل */}
         {step === 3 && (
           <div className="text-center py-4 space-y-3">
             <CheckCircle className="w-14 h-14 text-green-500 mx-auto" />

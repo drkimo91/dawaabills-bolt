@@ -1,7 +1,5 @@
 import { useState } from "react";
 import { Pencil, Trash2, CheckCircle2, Calendar, User, RotateCcw, Star, List } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import ConfirmDialog from "@/components/invoices/ConfirmDialog";
 import TaskRatingDialog from "@/components/tasks/TaskRatingDialog";

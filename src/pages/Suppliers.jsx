@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, Phone, MapPin, Clock, CreditCard } from "lucide-react";
+import { Plus, Pencil, Trash2, Phone, MapPin, Clock } from "lucide-react";
 import { logActivity } from "@/lib/activityLogger";
 import { useUserRole } from "@/lib/useUserRole";
 

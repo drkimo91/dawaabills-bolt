@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SlowMovingTab from "@/components/inventory/SlowMovingTab";
 import ExpiredItemsTab from "@/components/inventory/ExpiredItemsTab";
